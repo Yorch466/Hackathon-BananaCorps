@@ -1,0 +1,16 @@
+node_modules
+Context
+
+expo-env.d.ts
+
+.expo/
+
+/android
+android/app/build/
+android/.gradle/
+android/app/.cxx/
+android/build/
+
+.env
+.env.example
+n.env

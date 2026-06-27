@@ -1,0 +1,251 @@
+================================================================================
+  AVANCES DE DESARROLLO — El Maestrito Frontend
+  Fecha: 22/05/2026
+  Sesión: Correcciones UI de Perfiles + Conexión a Supabase Real
+  Branch Git: UserProfiles
+  Commits: ac8da84 → 600ce2d
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. CORRECCIONES DE UI — PERFILES TALLER Y PROVEEDOR
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+── src/components/profile/BannerCard.tsx ────────────────────────────────────
+
+CAMBIOS:
+  - Nuevos props: direccion?, horarioApertura?, horarioCierre?
+  - Nueva función isOpenNow(apertura, cierre): boolean
+      Compara hora actual con el rango → determina si está Abierto/Cerrado
+  - Nueva fila debajo del nombre del negocio:
+      [📍 dirección]  ·  [● Abierto/Cerrado · 08:00–18:00]
+      Punto verde (bg-success) = abierto, punto rojo (bg-danger) = cerrado
+  - Eliminado import de Stars (no se usaba)
+
+── app/(shop)/profile.tsx ────────────────────────────────────────────────────
+
+CAMBIOS EN BannerCard:
+  - TallerContent: pasa taller.direccion, taller.horario_apertura, taller.horario_cierre
+  - ProveedorContent: pasa proveedor.direccion, proveedor.horario_apertura, proveedor.horario_cierre
+
+CAMBIO EN SWITCH HÍBRIDO:
+  ANTES: barra ancha separada debajo del header (bg-navy-800, full-width)
+  AHORA: dos pills pequeños DENTRO del header, a la izquierda del ícono settings
+    - Activo: bg-accent, texto text-navy-900
+    - Inactivo: border border-navy-600, texto text-ink-secondary
+    - Alineados como flex-row items-center gap-2 junto al icono de ajustes
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2. SAFE AREA — TODOS LOS HEADERS PERSONALIZADOS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROBLEMA: Los headers arrancaban desde y=0 (detrás del status bar).
+  Los botones del header/switch híbrido quedaban inaccesibles.
+
+SOLUCIÓN: useSafeAreaInsets() de react-native-safe-area-context
+  Aplicado en todos los screens con headerShown: false:
+
+  Patrón usado en cada archivo:
+    const insets = useSafeAreaInsets();
+    <View style={{ paddingTop: insets.top + 12 }} ...>
+
+ARCHIVOS MODIFICADOS:
+  - app/(conductor)/profile.tsx
+  - app/(shop)/profile.tsx
+  - app/edit-profile/conductor.tsx
+  - app/edit-profile/taller.tsx
+  - app/edit-profile/proveedor.tsx
+  - app/edit-profile/hibrido.tsx
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3. CAMPOS HORARIO EN EDICIÓN DE TALLER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ANTES: Solo proveedor tenía campos de horario en edición.
+AHORA: Taller también tiene su propia sección "Horario de Atención".
+
+ARCHIVOS MODIFICADOS:
+  app/edit-profile/taller.tsx
+    - Schema Zod: + horario_apertura, + horario_cierre
+    - reset(): carga p.taller.horario_apertura, p.taller.horario_cierre
+    - UI: sección entre Dirección y Especialidades (idéntica a proveedor)
+
+  app/edit-profile/hibrido.tsx
+    - tallerSchema: + horario_apertura, + horario_cierre
+    - tallerForm.reset(): carga p.taller.horario_apertura, p.taller.horario_cierre
+    - handleSave(): envía horario_apertura y horario_cierre al updateTaller
+    - UI tab Taller: sección horario entre Dirección y Especialidades
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+4. MIGRACIÓN DE BD SUPABASE — SQL EJECUTADO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SQL YA EJECUTADO (por otra persona, script de login/RLS):
+  - Trigger handle_new_auth_user(): INSERT en usuario al registrar en Auth
+  - RLS en: usuario, taller, proveedor, suscripcion, planes
+
+SQL EJECUTADO EN ESTA SESIÓN (complemento):
+  - ALTER TABLE taller: ADD descripcion, horario_apertura, horario_cierre
+  - ALTER TABLE taller: lat/lng SET DEFAULT 0
+  - ALTER TABLE proveedor: ADD descripcion, horario_apertura, horario_cierre
+  - ALTER TABLE proveedor: lat/lng SET DEFAULT 0
+  - RLS especialidad: SELECT public
+  - RLS taller_especialidad: SELECT public + ALL para dueño del taller
+  - RLS servicios: SELECT public + ALL para dueño del taller
+  - RLS calificacion: SELECT public + INSERT para autenticados
+  - RLS favoritos: ALL para propio usuario
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+5. CONEXIÓN REAL A SUPABASE — CAMBIOS EN CÓDIGO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+── src/types/database.ts ────────────────────────────────────────────────────
+
+DbTaller ahora incluye:
+  descripcion: string | null
+  horario_apertura: string | null
+  horario_cierre: string | null
+
+DbProveedor ahora incluye:
+  descripcion: string | null
+  horario_apertura: string | null
+  horario_cierre: string | null
+
+── src/types/user.ts ────────────────────────────────────────────────────────
+
+UserMeta SIMPLIFICADO — solo campos del conductor (en auth.user_metadata):
+  full_name?: string
+  direccion?: string
+  bio?: string
+
+Eliminados: descripcion, horario_apertura, horario_cierre
+(ahora son columnas reales en taller y proveedor)
+
+── src/features/profile/api.ts ──────────────────────────────────────────────
+
+fetchCurrentProfile():
+  ANTES: si !user → retornaba mock según getDemoRole()
+  AHORA: si !user → retorna null (sin sesión = sin perfil)
+
+  meta solo lee: full_name, direccion, bio de user_metadata
+
+updateTallerProfile():
+  ANTES: separaba descripcion → user_metadata, resto → DB
+  AHORA: todo va directo a supabase.from('taller').update(data)
+  Acepta: nombre_taller, descripcion, horario_apertura, horario_cierre,
+          direccion, telefono, correo, banner_taller_url, perfil_taller_url
+
+updateProveedorProfile():
+  ANTES: separaba descripcion, horario_* → user_metadata
+  AHORA: todo va directo a supabase.from('proveedor').update(data)
+  Acepta: nombre_proveedor, descripcion, horario_apertura, horario_cierre,
+          direccion, telefono, correo, banner_proveedor_url, perfil_proveedor_url
+
+Eliminados: imports de getDemoRole, mockConductor, mockTaller, mockProveedor, mockHibrido
+
+── app/(shop)/profile.tsx ───────────────────────────────────────────────────
+
+TallerContent: BannerCard recibe description/horario desde taller.* (DB)
+ProveedorContent: BannerCard recibe description/horario desde proveedor.* (DB)
+meta ya no se desestructura en estos componentes
+
+── app/edit-profile/taller.tsx ──────────────────────────────────────────────
+
+reset() carga desde:
+  descripcion      ← p.taller.descripcion        (antes: p.meta.descripcion)
+  horario_apertura ← p.taller.horario_apertura    (antes: p.meta.horario_apertura)
+  horario_cierre   ← p.taller.horario_cierre      (antes: p.meta.horario_cierre)
+
+── app/edit-profile/proveedor.tsx ───────────────────────────────────────────
+
+reset() carga desde:
+  descripcion      ← p.proveedor.descripcion
+  horario_apertura ← p.proveedor.horario_apertura
+  horario_cierre   ← p.proveedor.horario_cierre
+
+── app/edit-profile/hibrido.tsx ─────────────────────────────────────────────
+
+tallerForm.reset() carga desde p.taller.*
+proveedorForm.reset() carga desde p.proveedor.*
+handleSave() envía horario al updateTaller junto con los demás campos
+
+── src/mocks/profiles.ts ────────────────────────────────────────────────────
+
+MOCK_TALLER: descripcion, horario_apertura, horario_cierre movidos a
+             el objeto del taller (fuera del meta)
+MOCK_PROVEEDOR: ídem
+mockTaller.meta / mockProveedor.meta / mockHibrido.meta: solo full_name
+(Los mocks se mantienen para posibles pruebas unitarias, ya no se usan en producción)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+6. HUB DE DESARROLLO — app/index.tsx REESCRITO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ANTES: botones que llamaban setDemoRole(role) antes de navegar → datos mock
+AHORA: hub con autenticación real
+
+Funcionalidad:
+  - Badge de sesión: verde "✓ Sesión activa: email@..." / gris "○ Sin sesión"
+  - Formulario login: inputs email + contraseña + botón "Entrar"
+    Usa supabase.auth.signInWithPassword()
+    Muestra error si las credenciales fallan
+  - Botón "Cerrar sesión" cuando hay sesión activa
+  - Botones de navegación a perfiles y edición deshabilitados si no hay sesión
+  - onAuthStateChange listener actualiza el estado en tiempo real
+
+Eliminado: import de setDemoRole, import de UiRole (ya no se usan)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+7. FLUJO DE DATOS ACTUAL (POST-SESIÓN)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Usuario inicia sesión → supabase.auth.signInWithPassword()
+2. Trigger handle_new_auth_user() ya debió crear la fila en usuario al registrarse
+3. fetchCurrentProfile():
+   a. supabase.auth.getUser() → obtiene user.id
+   b. SELECT * FROM usuario WHERE id_usuario = user.id
+   c. SELECT * FROM taller WHERE usuario_id = user.id (maybeSingle)
+   d. SELECT * FROM proveedor WHERE usuario_id = user.id (maybeSingle)
+   e. Si taller + proveedor → role = 'hibrido'
+   f. Si solo taller → busca especialidades + servicios + rating
+   g. Si solo proveedor → busca rating
+   h. Si ninguno → role = 'conductor'
+4. React Query cachea el resultado en key ['profile', 'current', 'real']
+5. Las pantallas muestran datos reales de Supabase
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+8. PENDIENTES PARA PRÓXIMAS SESIONES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ALTA PRIORIDAD:
+  - Conectar el login real (que hace otro developer) con la navegación por rol:
+      conductor → /(conductor)/profile (o dashboard)
+      taller/proveedor/hibrido → /(shop)/profile (o dashboard)
+  - Si el trigger no creó la fila en usuario (usuarios anteriores al trigger),
+    insertar manualmente o crear un script de migración.
+
+MEDIA PRIORIDAD:
+  - Upload de foto de perfil y banner:
+      expo-image-picker + supabase.storage.from('avatars').upload()
+      Actualizar perfil_taller_url / perfil_proveedor_url / avatar_url en BD
+  - Implementar handler real de "Eliminar cuenta"
+      supabase.auth.admin.deleteUser() requiere rol service_role → Edge Function
+  - Vista pública shop/[id].tsx (conductor viendo perfil de un taller/proveedor)
+  - RateModal: componente para calificar desde perfil público
+
+BAJA PRIORIDAD:
+  - Conectar BottomNav con las tabs correctas por rol
+  - Dashboard, items, servicios, notificaciones (aún son stubs)
+  - Pantalla de mapa con talleres/proveedores cercanos
+
+NOTA IMPORTANTE — usuarios sin fila en `usuario`:
+  Si hay usuarios en auth.users creados ANTES de que se ejecutara el trigger,
+  no tendrán fila en la tabla usuario y fetchCurrentProfile retornará null.
+  Solución: ejecutar en Supabase SQL Editor:
+    INSERT INTO public.usuario (id_usuario, email, ci, phone, type)
+    SELECT id, email, '', NULL, 'conductor'
+    FROM auth.users
+    WHERE id NOT IN (SELECT id_usuario FROM public.usuario);
+
+================================================================================
+  FIN DEL REPORTE — 22/05/2026
+================================================================================
